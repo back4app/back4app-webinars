@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Canvas Pong
 ===========
 
@@ -13,3 +14,6 @@ NOTES
 =====
 
  * No support for mobile devices (need to handle touch events instead of key input)
+=======
+# back4app-webnars
+>>>>>>> ff2926bbe332d85f53bd442588836e9bec0202cf

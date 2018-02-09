@@ -1,0 +1,3 @@
+curl -X POST -H "X-Parse-Application-Id: MyAppID" -H "X-Parse-REST-API-Key: MyRestAPIKey" -H "Content-Type: application/json" -d '{ "MyParam": "MyValue" }' https://parseapi.back4app.com/functions/MyMethod
+
+curl -X POST -H 'X-Parse-Application-Id: MyAppID' -H 'X-Parse-Master-Key: MyRestAPIKey' https://parseapi.back4app.com/jobs/MyJob

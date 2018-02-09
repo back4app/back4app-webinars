@@ -7,91 +7,208 @@
 </head>
 
 <body>
+  <script src="https://unpkg.com/parse/dist/parse.min.js"></script>
 
-  <div id="sidebar">
+  <script>
+  // Initialize Parse
+  Parse.initialize("t2tXkl3F3UkhdqzWyFGguhql32eXD0JgiDQ6vhaM", "UNutINgcZaYuW4ahOaZTlUJFZRHXjk4Qn2IbagwP"); // don't forget to change these keys
+  Parse.serverURL = "https://parseapi.back4app.com/";
 
-    <h2>This is B4APong!</h2>
-
-    <ul class='parts'>
-      <li><a href='/' class='selected'>Full Game</a></li>
-      <li><a href='/part1'><i>game runner</i> - Part 1</a></li>
-      <li><a href='/part2'><i>bouncing ball</i> - Part 2</a></li>
-      <li><a href='/part3'><i>game loop</i> - Part 3</a></li>
-      <li><a href='/part4'><i>collision detection</i> - Part 4</a></li>
-      <li><a href='/part5'><i>computer AI</i> - Part 5</a></li>
-    </ul>
-
-    <div class='description'>
-      <p>
-        This is a javascript version of Pong.
-      </p>
-      <p>
-        Press <b>1</b> for a single player game.<br>
-        Press <b>2</b> for a double player game.<br>
-        Press <b>0</b> to watch the computer play itself.
-      </p>
-      <p>
-        Player 1 moves using the <b>Q</b> and <b>A</b> keys.<br>
-        Player 2 moves using the <b>P</b> and <b>L</b> keys.
-      </p>
-      <p>
-        <b>Esc</b> can be used to abandon a game.
-      </p>
-    </div>
-
-    <div class='settings'>
-      <label for='sound'>sound: </label>
-      <input type='checkbox' id='sound'>
-    </div>
-
-    <div class='settings'>
-      <label for='stats'>stats: </label>
-      <input type='checkbox' id='stats' checked>
-    </div>
-
-    <div class='settings'>
-      <label for='footprints'>footprints: </label>
-      <input type='checkbox' id='footprints'>
-    </div>
-
-    <div class='settings'>
-      <label for='predictions'>predictions: </label>
-      <input type='checkbox' id='predictions'>
-    </div>
-
-  </div>
-
-  <canvas id="game">
-    <div id="unsupported">
-      Sorry, this example cannot be run because your browser does not support the &lt;canvas&gt; element
-    </div>
-  </canvas>
-
-  <script src="game.js" type="text/javascript"></script>
-  <script src="pong.js" type="text/javascript"></script>
-  <script type="text/javascript">
-  Game.ready(function() {
-
-    var size        = document.getElementById('size');
-    var sound       = document.getElementById('sound');
-    var stats       = document.getElementById('stats');
-    var footprints  = document.getElementById('footprints');
-    var predictions = document.getElementById('predictions');
-
-    var pong = Game.start('game', Pong, {
-      sound:       sound.checked,
-      stats:       stats.checked,
-      footprints:  footprints.checked,
-      predictions: predictions.checked
+  // Load the Facebook API asynchronous when the window starts loading
+  window.fbAsyncInit = function() {
+    Parse.FacebookUtils.init({ // this line replaces FB.init({
+      appId      : '218054368761111', // Facebook App ID
+      cookie     : true,  // enable cookies to allow Parse to access the session
+      xfbml      : true,  // initialize Facebook social plugins on the page
+      version    : 'v2.3' // point to the latest Facebook Graph API version, found in FB's App dashboard.
     });
 
-    Game.addEvent(sound,       'change', function() { pong.enableSound(sound.checked);           });
-    Game.addEvent(stats,       'change', function() { pong.showStats(stats.checked);             });
-    Game.addEvent(footprints,  'change', function() { pong.showFootprints(footprints.checked);   });
-    Game.addEvent(predictions, 'change', function() { pong.showPredictions(predictions.checked); });
+    // Put here code to run after the Facebook SDK is loaded.
+  };
 
-  });
-  </script>
+  // Include the Facebook SDK. This is default so just copy and paste it.
+  (function(d, s, id){
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) {return;}
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/sdk.js";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
 
-</body>
-</html>
+  function logIn() {
+    // This is the Login function. It uses Facebook to get a Authentication token
+    Parse.FacebookUtils.logIn("public_profile,email", { // Here we set the infos we need from Facebook. The user must accept those in order to continue.
+      success: function(user) { // If the user accepted and everything went well
+        if (!user.existed()) { // We have to check if the user exists or not so we can save it or update it
+          // If the user DOES NOT exist
+          FB.api('/me?fields=id,name,email,permissions', function (response) { // We retrieve the users info
+            user.set('username', response.name); //We set the user name from Facebook to the Parse user
+            user.set('email', response.email); // Also email
+            // if you retrieved anything else from Facebook, this is where we deal with it
+            user.save(null, { // And try to save it to the Parse user
+              success: function(user) {
+                //everything went well
+                console.log('logIn: User logged in and sign up through Facebook, with username: ' + user.get('username') + ' and email: ' + user.get('email'));
+              },
+              error: function(user, error) {
+                //Ops.. something went wrong
+                console.log('logIn: Failed to save user to database with error: ' + error.message);
+              }
+            });
+          });
+        } else {
+          //Oh, the user already existed in Parse, so it is a returning user
+          console.log("logIn: User logged in through Facebook!");
+        }
+      },
+      error: function(user, error) {
+        //This is very generic. A user could have cancelled the login process or didnt give all the authorizations we asked for
+        console.log("logIn: User cancelled the Facebook login or did not fully authorize.");
+        console.log(error);
+      }
+    });
+  }
+
+  function addPoint() {
+    //This function adds a point to the current Parse user
+    var user = Parse.User.current(); // First we get the current Parse user so we can add a point
+    var score = Parse.Object.extend("Score"); // We will be adding points to the class Score
+    var query = new Parse.Query(score); // We have to query the Score to check if a player already has points
+    query.equalTo("player", user); // The Score is linked to a Player, so we have to query for the player as well
+    query.find( // Find it, Parse!
+      {
+        success: function(results) {
+          // Successfully retrieved the object.
+          if (results.length == 0) {
+            console.log('No Objects Found. Creating one.')
+            var newScore = new score();
+            newScore.set("player", user); // We set the player that will receive the point
+            newScore.set("score", 1); // As it is a new score, we set it to 1
+            newScore.save(null, {
+              success: function(newScore) {
+                console.log('New score saved with ID: ' + newScore.id);
+              },
+              error: function(newScore, error) {
+                console.log('Error saving new score: ' + error.message);
+              }
+            });
+          }
+          else {
+            // Oh, the player already has points
+            console.log(results.length + ' Objects Found. Updating.')
+            var oldScore = results[0]; // we retrieve the current score
+            oldScore.increment("score"); // increment it by 1
+            oldScore.save(null, { // and try to save it again
+              success: function(newScore) {
+                console.log('Old score saved with ID: ' + newScore.id);
+              },
+              error: function(newScore, error) {
+                console.log('Error saving old score: ' + error.message);
+              }
+            });
+          }
+        },
+        error: function(error) {
+          // Ops... something went wrong
+          console.log("Error: " + error.code + " " + error.message);
+        }
+      });
+    }
+
+    </script>
+
+    <div id="sidebar">
+
+      <h2>This is B4APong!</h2>
+
+      <ul class='parts'>
+        <li><a href='/' class='selected'>Full Game</a></li>
+        <li><a href='/part1'><i>game runner</i> - Part 1</a></li>
+        <li><a href='/part2'><i>bouncing ball</i> - Part 2</a></li>
+        <li><a href='/part3'><i>game loop</i> - Part 3</a></li>
+        <li><a href='/part4'><i>collision detection</i> - Part 4</a></li>
+        <li><a href='/part5'><i>computer AI</i> - Part 5</a></li>
+      </ul>
+
+      <div class='description'>
+        <p>
+          This is a javascript version of Pong.
+        </p>
+        <p>
+          Press <b>1</b> for a single player game.<br>
+          Press <b>2</b> for a double player game.<br>
+          Press <b>0</b> to watch the computer play itself.
+        </p>
+        <p>
+          Player 1 moves using the <b>Q</b> and <b>A</b> keys.<br>
+          Player 2 moves using the <b>P</b> and <b>L</b> keys.
+        </p>
+        <p>
+          <b>Esc</b> can be used to abandon a game.
+        </p>
+      </div>
+
+      <div class='settings'>
+        <label for='sound'>sound: </label>
+        <input type='checkbox' id='sound' checked>
+      </div>
+
+      <div class='settings'>
+        <label for='stats'>stats: </label>
+        <input type='checkbox' id='stats'>
+      </div>
+
+      <div class='settings'>
+        <label for='footprints'>footprints: </label>
+        <input type='checkbox' id='footprints'>
+      </div>
+
+      <div class='settings'>
+        <label for='predictions'>predictions: </label>
+        <input type='checkbox' id='predictions'>
+      </div>
+
+      <div class='settings'>
+        <p>
+          <button class="loginBtn loginBtn--facebook" onclick="logIn()">
+            Login with Facebook
+          </button>
+        </p>
+      </div>
+
+    </div>
+
+    <canvas id="game">
+      <div id="unsupported">
+        Sorry, this example cannot be run because your browser does not support the &lt;canvas&gt; element
+      </div>
+    </canvas>
+
+    <script src="game.js" type="text/javascript"></script>
+    <script src="pong.js" type="text/javascript"></script>
+    <script type="text/javascript">
+    Game.ready(function() {
+
+      var size        = document.getElementById('size');
+      var sound       = document.getElementById('sound');
+      var stats       = document.getElementById('stats');
+      var footprints  = document.getElementById('footprints');
+      var predictions = document.getElementById('predictions');
+
+      var pong = Game.start('game', Pong, {
+        sound:       sound.checked,
+        stats:       stats.checked,
+        footprints:  footprints.checked,
+        predictions: predictions.checked
+      });
+
+      Game.addEvent(sound,       'change', function() { pong.enableSound(sound.checked);           });
+      Game.addEvent(stats,       'change', function() { pong.showStats(stats.checked);             });
+      Game.addEvent(footprints,  'change', function() { pong.showFootprints(footprints.checked);   });
+      Game.addEvent(predictions, 'change', function() { pong.showPredictions(predictions.checked); });
+
+    });
+    </script>
+
+  </body>
+  </html>
